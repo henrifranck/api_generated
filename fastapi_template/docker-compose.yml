@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  api:
+    image: "${IMAGE_NAME}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - TESTING=${TESTING:-0}  # Set to "true" to enable tests
+    ports:
+      - "${HOST_PORT}:${CONTAINER_PORT}"
+    volumes:
+      - ./files:/app/files
+    command: /app/prestart.sh  # Just run the prestart script

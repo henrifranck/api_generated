@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Your Title</title>
+    <style>
+        /* Your CSS styles */
+        body {
+            font-family: Arial, sans-serif;
+            /* Add other styles as needed */
+        }
+        /* Define your other styles for classes and elements used */
+    </style>
+</head>
+<body>
+<!-- Content -->
+{% for index_ue, value_ue in note['ue'] %}
+<div style="margin-top: 20px;"></div>
+<div style="font-weight: bold; font-style: italic; font-size: 9px;">
+    U.E-{{ index_ue + 1 }}: {{ value_ue['name'] }}
+</div>
+<!-- Insert other content for EC within this loop -->
+{% for index, value in enumerate(value_ue['ec']) %}
+<div style="margin-top: 20px;"></div>
+<div style="font-style: italic; font-size: 9px;">
+    E.C-{{ index + 1 }}: {{ value['name'] }}
+</div>
+<!-- Insert other content details for EC -->
+<!-- Example: -->
+<div>{{ value['note'] }}</div>
+<!-- Insert other data for note, weight, etc. -->
+{% endfor %}
+<!-- Insert content after EC loop for note subtotals -->
+<div style="margin-top: 20px;"></div>
+<div style="font-weight: bold; font-style: italic; font-size: 9px;">
+    NOTE SOUS TOTAL U.E-{{ index_ue + 1 }}
+</div>
+<!-- Insert content for note subtotals -->
+<!-- Example: -->
+<div>{{ value_ue['note'] }}</div>
+<!-- Insert other data for credits, validation, etc. -->
+{% endfor %}
+<!-- Other content not in loops -->
+<div style="margin-top: 20px;"></div>
+<div style="font-weight: bold; font-style: italic; font-size: 9px;">
+    Your Moyenne
+</div>
+<!-- Insert content for Moyenne and validation_et -->
+<!-- Example: -->
+<div>{{ note['mean'] }}</div>
+<div>{{ validation_et }}</div>
+<!-- Insert other content -->
+<div style="margin-top: 130px;"></div>
+<div style="font-weight: bold; font-style: italic; font-size: 10px;">
+    Your Text
+</div>
+<!-- Insert other text content -->
+</body>
+</html>
