@@ -42,41 +42,33 @@ def generate_random_json():
     }
 
 
-def generate_column(data: List[AttributesModel]) -> Dict[str, Any]:
-    """Generate realistic test data based on model attributes."""
-    result = {}
-    for attr in data:
-        if attr.name == "id":
-            continue
-        elif attr.name == "email":
-            result[attr.name] = f"{generate_data('Email', 5)}@{generate_data('Email', 5).lower()}.com"
-        elif attr.name == "hashed_password":
-            result['password'] = "securepassword123"
-        elif attr.type.lower() == "str":
-            result[attr.name] = f"test_{attr.name}"
-        elif attr.type.lower() == "int":
-            result[attr.name] = 123
-        elif attr.type.lower() == "bool":
-            result[attr.name] = True
-        elif attr.type.lower() == "float":
-            result[attr.name] = 1.23
-        else:
-            value = generate_data(attr.type, attr.length)
-            if isinstance(value, str):
-                result[attr.name] = repr(value)  # adds quotes & escapes
-            if isinstance(value, (bool, int, float)):
-                result[attr.name] = repr(value)
-            if isinstance(value, (datetime, date, time)):
-                result[attr.name] = str(value.isoformat())
-            if isinstance(value, uuid.UUID):
-                result[attr.name] = f"'{str(value)}'"
+def generate_data(type_: Any, length: int = 5, all_enums=None, column = None):
+    """
+    Generate test data for various types including ENUMs.
 
-    return result
-
-
-def generate_data(type_: Any, length: int = 5):
+    Args:
+        type_: The data type to generate
+        length: Length for string types
+        column_name: Column Name
+        all_enums: List of possible values for ENUM types
+    """
     type_ = type_.upper()
     limit = 10 if length and length >= 10 else length
+
+    # Handle ENUM types first
+    enum_data = None
+    for enum in all_enums:
+        if enum["name"] == column.enum_name:
+            enum_data = enum
+            break
+
+    if enum_data:
+        import random
+        enum_values = [value["value"] for value in enum_data["values"]]
+        print("ito koa raiky", column.name, enum_values)
+        return f"'{random.choice(enum_values)}'"
+
+    # Handle other types
     if type_ == "STRING(255)":
         return generate_random_text(generate_random_integer(limit))
     elif type_ == "INTEGER" or type_ == "INT":
@@ -152,6 +144,8 @@ def get_comumn_type_msql(column_type: str) -> str:
         return "Time"
     elif column_type == "JSON":
         return "JSON"
+    elif column_type == "ENUM":
+        return "Enum"
     else:
         return "Any"
 

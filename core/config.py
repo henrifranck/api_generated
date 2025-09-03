@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     MYSQL_USER: str
     MYSQL_PASSWORD: str
     MYSQL_HOST: str
-    MYSQL_PORT: str
+    MYSQL_PORT: int
     MYSQL_DATABASE: str
 
     class Config:

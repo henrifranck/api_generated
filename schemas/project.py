@@ -17,6 +17,7 @@ class AttributesModel(BaseModel):
     foreign_key_class: Optional[str] = None
     foreign_key: Optional[str] = None
     relation_name: Optional[str] = None
+    enum_name: Optional[str] = None
 
     @property
     def sqlalchemy_type(self) -> str:
@@ -39,6 +40,8 @@ class AttributesModel(BaseModel):
             return "Float"
         elif t == "Json":
             return "JSON"
+        elif t == "ENUM":
+            return "Enum"
         # Add other mappings as needed
         return t  # fallback
 

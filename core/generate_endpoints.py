@@ -2,8 +2,8 @@ import os
 from typing import List
 
 import schemas
+from core.generate_filename import generate_filename
 from schemas import ClassModel
-from sqlalchemy.orm import DeclarativeMeta
 
 from model_type import snake_to_camel, camel_to_snake
 
@@ -40,7 +40,7 @@ def generate_router_file(table_name, other_config):
     # Route definitions
     routes = [
         f"@router.get('/', response_model=schemas.{response_model_name})",
-        f"def read_{router_name}s(",
+        f"def read_{generate_filename(router_name)}(",
         "        *,",
         "        offset: int = 0,",
         "        limit: int = 20,",
@@ -50,7 +50,7 @@ def generate_router_file(table_name, other_config):
         f"        {auth_dependency}",
         ") -> Any:",
         f"    \"\"\"",
-        f"    Retrieve {router_name}s.",
+        f"    Retrieve {generate_filename(router_name)}.",
         f"    \"\"\"",
         ""
         "    relations = []",
@@ -61,10 +61,10 @@ def generate_router_file(table_name, other_config):
         "    if where is not None and where != \"\" and where != []:",
         "       wheres += ast.literal_eval(where)",
         "",
-        f"    {router_name}s = crud.{crud_name}.get_multi_where_array(",
+        f"    {generate_filename(router_name)} = crud.{crud_name}.get_multi_where_array(",
         f"      db=db, relations=relations, skip=offset, limit=limit, where=wheres)",
         f"    count = crud.{crud_name}.get_count_where_array(db=db, where=wheres)",
-        f"    response = schemas.{response_model_name}(**{{'count': count, 'data': jsonable_encoder({router_name}s)}})",
+        f"    response = schemas.{response_model_name}(**{{'count': count, 'data': jsonable_encoder({generate_filename(router_name)})}})",
         "    return response",
         "",
         "",
@@ -160,7 +160,7 @@ def write_endpoints(models: List[ClassModel], output_dir, other_config: schemas.
         model = ClassModel(**model)
         table_name = camel_to_snake(model.name)
         endpoints = generate_router_file(table_name, other_config)
-        file_name = f"{table_name}s.py"
+        file_name = f"{generate_filename(table_name)}.py"
         file_path = os.path.join(endpoints_directory, file_name)
 
         if not os.path.exists(file_path):

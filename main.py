@@ -15,6 +15,7 @@ from core.generate_config import write_auth_config
 from core.generate_crud import write_crud
 from core.generate_crud_unit_test import write_test_crud
 from core.generate_endpoints import write_endpoints
+from core.generate_enum import write_enums
 from core.generate_env import generate_env
 from core.generate_init_file import write_init_files
 from core.generate_models import write_models
@@ -59,6 +60,12 @@ def create_all_file(project, destination_dir, migration_message, class_model: Li
     print("Generating project files...")
 
     other_config = schemas.OtherConfigSchema(**project.other_config)
+
+    enums = None
+    if project.nodes["enums"] and len(project.nodes["enums"]) > 0:
+        enums = project.nodes["enums"]
+        write_enums(project.nodes["enums"], destination_dir)
+
     write_models(class_model, destination_dir)
     write_schemas(class_model, destination_dir)
 
@@ -69,8 +76,8 @@ def create_all_file(project, destination_dir, migration_message, class_model: Li
     write_base_files(class_model, destination_dir)
 
     # each updated generate test
-    write_test_crud(project.class_model, destination_dir)
-    write_test_apis(project.class_model, destination_dir, other_config)
+    write_test_crud(project.class_model, destination_dir, all_enums=enums)
+    write_test_apis(project.class_model, destination_dir, other_config, all_enums=enums)
 
     if not other_config.use_authentication:
         reformate_code(destination_dir)
@@ -82,7 +89,7 @@ def create_all_file(project, destination_dir, migration_message, class_model: Li
     except AttributeError:
         pass  # os.sync doesn't exist on some platforms
 
-    print(f"All files generated. Proceeding with Alembic migration... t{migration_message}s ...")
+    print(f"All files generated. Proceeding with Alembic migration... t {migration_message}s ...")
     run_migrations(message=migration_message)
 
 

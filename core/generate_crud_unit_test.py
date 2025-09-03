@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
 import logging
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Set, Tuple, Any
 
 from schemas import ClassModel, AttributesModel
 from model_type import preserve_custom_sections, camel_to_snake
@@ -23,11 +25,36 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _literal_value(attr: AttributesModel) -> str:
+
+
+
+def _literal_value(attr: AttributesModel, all_enums: Dict[str, List[str]] = None) -> str:
     """
     Return Python *code* for a realistic value of the given column.
     No more hard-coded None!
     """
+    # Handle ENUM types
+
+    if (hasattr(attr, 'type') and hasattr(attr, 'enum_name') and
+            attr.type and attr.enum_name and
+            attr.type.lower() == "enum" and
+            all_enums):
+
+        # Recherche de l'enum correspondant dans la liste
+        enum_data = None
+        for enum in all_enums:
+            if enum["name"] == attr.enum_name:
+                enum_data = enum
+                break
+
+        if enum_data:
+            import random
+            enum_values = [value["value"] for value in enum_data["values"]]
+            print("ito koa raiky", attr.name, enum_values)
+            return f"'{random.choice(enum_values)}'"
+        else:
+            print(f"Enum {attr.enum_name} not found in all_enums")
+
     # Give special-case values you hard-coded earlier
     if attr.name == "email":
         name = generate_data("Email", 8)
@@ -67,6 +94,7 @@ def _build_dependency_setup_lines(
         all_models: Dict[str, ClassModel],
         created: Set[str],
         indent: str = "    ",
+        all_enums: Any = None
 ) -> Tuple[List[str], str]:
     """
     Recursively create parent FK models and emit Python test code for the current model.
@@ -82,7 +110,7 @@ def _build_dependency_setup_lines(
             fk_model = all_models[attr.foreign_key_class]
             if fk_model.name not in created:
                 fk_lines, _ = _build_dependency_setup_lines(
-                    fk_model, all_models, created, indent
+                    fk_model, all_models, created, indent, all_enums
                 )
                 lines.extend(fk_lines)
 
@@ -96,7 +124,7 @@ def _build_dependency_setup_lines(
             fk_var = camel_to_snake(attr.foreign_key_class)
             lines.append(f"{indent}    {attr.name}={fk_var}.id,")
         else:
-            lines.append(f"{indent}    {_literal_name(attr.name)}={_literal_value(attr)},")
+            lines.append(f"{indent}    {_literal_name(attr.name)}={_literal_value(attr, all_enums)},")
     lines.append(f"{indent})\n")
 
     # Create the object using CRUD
@@ -128,7 +156,7 @@ def generate_import(_: ClassModel) -> str:
 
 
 def generate_test_crud(
-        model: ClassModel, table_name: str, all_models: Dict[str, ClassModel]
+        model: ClassModel, table_name: str, all_models: Dict[str, ClassModel], all_enums=None
 ) -> str:
     """Emit the five CRUD test functions, with FK-aware setup."""
     test_name = camel_to_snake(model.name)
@@ -140,7 +168,7 @@ def generate_test_crud(
         # -------------------------------------------------------------------
         # Dependency chain (creates everything, *including* {model})
         # -------------------------------------------------------------------
-        dep_lines, root_var = _build_dependency_setup_lines(model, all_models, set())
+        dep_lines, root_var = _build_dependency_setup_lines(model, all_models, set(), all_enums=all_enums)
         lines.extend(dep_lines)
         data_var = f"{root_var}_data"  # created inside dependency builder
         schema_update = f"schemas.{model.name}Update"
@@ -222,7 +250,8 @@ def generate_test_crud(
                         # For all other fields
                         f"    assert updated_{root_var}.{a.name} != {a.name}_value"
                         for a in model.attributes
-                        if a.name != 'id' and not a.is_foreign and a.name != 'hashed_password' and a.type.lower() != 'json'
+                        if
+                        a.name != 'id' and not a.is_foreign and a.name != 'hashed_password' and a.type.lower() != 'json'
                     ],
                 ]
             )
@@ -277,11 +306,11 @@ def generate_test_crud(
 
 
 def generate_full_schema(
-        model: ClassModel, table_name: str, all_models: Dict[str, ClassModel]
+        model: ClassModel, table_name: str, all_models: Dict[str, ClassModel], all_enums=None
 ) -> str:
     """Concatenate imports + helper tests for one model into a file."""
     return "\n".join(
-        [generate_import(model), generate_test_crud(model, table_name, all_models)]
+        [generate_import(model), generate_test_crud(model, table_name, all_models, all_enums)]
     )
 
 
@@ -290,7 +319,7 @@ def generate_full_schema(
 # ---------------------------------------------------------------------------
 
 
-def write_test_crud(models: List[ClassModel], output_dir: str) -> None:
+def write_test_crud(models: List[ClassModel], output_dir: str, all_enums=None) -> None:
     """
     For every ClassModel in *models* write `tests/test_crud_<table>.py`,
     preserving any custom sections.
@@ -308,7 +337,7 @@ def write_test_crud(models: List[ClassModel], output_dir: str) -> None:
 
     for model in normalized_models:
         table_name = camel_to_snake(model.name)
-        content = generate_full_schema(model, table_name, all_models)
+        content = generate_full_schema(model, table_name, all_models, all_enums)
         fname = f"test_crud_{table_name}.py"
         fpath = os.path.join(full_output_dir, fname)
 

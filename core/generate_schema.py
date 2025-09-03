@@ -103,6 +103,20 @@ def generate_import(model: ClassModel) -> str:
     if needs_validators:
         schema_lines.append("from pydantic import field_validator")
 
+    # Add enum imports if any column uses enum
+    enum_imports = {}
+    for column in model.attributes:
+        if column.type.lower() == "enum" and column.enum_name:
+            # Convert enum name to snake_case for the file name
+            enum_file_name = camel_to_snake(column.enum_name)
+            if enum_file_name not in enum_imports:
+                enum_imports[enum_file_name] = set()
+            enum_imports[enum_file_name].add(column.enum_name)
+
+    # Add separate import for each enum file
+    for enum_file_name, enum_classes in enum_imports.items():
+        schema_lines.append(f"from app.enum.{enum_file_name} import {', '.join(sorted(enum_classes))}")
+
     # Inspect relationships in the model
     for attr in model.attributes:
         if attr.is_foreign:
@@ -120,7 +134,12 @@ def generate_base_schema(model: ClassModel, table_name: str) -> str:
     for column in model.attributes:
         if column.name != 'id':
             column_name = generate_comumn_name(column.name, not column.is_required)
-            column_type = get_column_type(column.type)
+
+            # Handle enum columns
+            if column.type.lower() == "enum" and column.enum_name:
+                column_type = column.enum_name
+            else:
+                column_type = get_column_type(column.type)
 
             default_value = " = None"
             schema_lines.append(f"    {column_name['name']}: Optional[{column_type}]{default_value}")
@@ -143,8 +162,15 @@ def generate_create_schema(model: ClassModel, base_schema: str, table_name: str)
     for column in model.attributes:
         if column.is_required and not column.is_primary:
             column_name = generate_comumn_name(column.name)
-            column_type = get_column_type(column.type)
+
+            # Handle enum columns
+            if column.type.lower() == "enum" and column.enum_name:
+                column_type = column.enum_name
+            else:
+                column_type = get_column_type(column.type)
+
             schema_lines.append(f"    {column_name['name']}: {column_type}")
+
     if len(schema_lines) == 1:
         schema_lines.append("    pass")
 
@@ -258,14 +284,14 @@ def generate_full_schema(model: ClassModel, table_name: str) -> str:
 
 def write_schemas(models: List[ClassModel], output_dir: str):
     """Write the generated schemas to files, preserving custom sections."""
-    output_dir += OUTPUT_DIR
-    os.makedirs(output_dir, exist_ok=True)
-    for model in models:
-        model = ClassModel(**model)
+    full_output_dir = os.path.join(output_dir, OUTPUT_DIR.lstrip('/'))
+    os.makedirs(full_output_dir, exist_ok=True)
+    for model_data in models:
+        model = ClassModel(**model_data)
         table_name = camel_to_snake(model.name)
         schemas = generate_full_schema(model, table_name)
         file_name = f"{table_name}.py"
-        file_path = os.path.join(output_dir, file_name)
+        file_path = os.path.join(full_output_dir, file_name)
 
         # Preserve custom sections in the file
         final_content = preserve_custom_sections(file_path, schemas)

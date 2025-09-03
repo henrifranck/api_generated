@@ -1,8 +1,8 @@
 {
-    "new_project_path": "/Users/macbookpro/Desktop/projet/unit_test",
-    "db": "unit_test",
-    "user": "test_user",
+    "new_project_path": "/home/ubuntu/project/pdf-services",
+    "db": "pdf_services",
+    "user": "pdf_service_users",
     "host": "localhost",
-    "password": "malagasy",
-    "port": 3306
+    "password": "Password123456/",
+    "port": 3307
 }

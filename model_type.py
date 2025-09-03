@@ -78,9 +78,11 @@ def camel_to_snake(name):
 def create_or_update_mysql_user(new_user, new_password, database):
     connection = None
     try:
+        print(settings.MYSQL_PORT)
         # Connect to the MySQL server
         connection = pymysql.connect(
             host=settings.MYSQL_HOST,
+            port=settings.MYSQL_PORT,
             user=settings.MYSQL_USER,
             password=settings.MYSQL_PASSWORD,
             cursorclass=pymysql.cursors.DictCursor

@@ -17,6 +17,21 @@ def generate_import(model: ClassModel):
         "from sqlalchemy.orm import relationship, column_property, aliased",
         f"from sqlalchemy import {model.column_type_list}"
     ]
+
+    # Add enum imports if any column uses enum
+    enum_imports = {}
+    for column in model.attributes:
+        if column.type.lower() == "enum" and column.enum_name:
+            # Convert enum name to snake_case for the file name
+            enum_file_name = camel_to_snake(column.enum_name)
+            if enum_file_name not in enum_imports:
+                enum_imports[enum_file_name] = set()
+            enum_imports[enum_file_name].add(column.enum_name)
+
+    # Add separate import for each enum file
+    for enum_file_name, enum_classes in enum_imports.items():
+        imports.append(f"from app.enum.{enum_file_name} import {', '.join(sorted(enum_classes))}")
+
     return "\n".join(imports)
 
 
@@ -37,9 +52,15 @@ def generate_models(model: ClassModel):
     all_columns = model.attributes + default_columns
 
     for column in all_columns:
-        column_def = f"    {column.name} = Column({get_comumn_type_msql(column.type)}"
-        if column.type == "String" and column.length:
-            column_def += f"({column.length})"
+        # Handle enum columns
+        if column.type.lower() == "enum" and column.enum_name:
+            column_def = f"    {column.name} = Column({get_comumn_type_msql(column.type)}"
+            # Use the enum class for the column type
+            column_def += f"({column.enum_name})"
+        else:
+            column_def = f"    {column.name} = Column({get_comumn_type_msql(column.type)}"
+            if column.type == "String" and column.length:
+                column_def += f"({column.length})"
 
         # Conditionally add primary_key and autoincrement
         column_options = []
@@ -66,9 +87,12 @@ def generate_models(model: ClassModel):
             column_options.append("default=func.now()")
             column_options.append("onupdate=func.now()")
 
-        column_def += ", " + ", ".join(column_options) if len(column_options) > 0 else ", ".join(column_options)
+        # Only add comma if there are options
+        if column_options:
+            column_def += ", " + ", ".join(column_options)
         column_def += ")"
         models_lines.append(column_def)
+
     models_lines.append("")
     models_lines.append("    # Relations")
     for column in model.attributes:
@@ -92,15 +116,15 @@ def generate_full_models(model):
 
 def write_models(models: List[ClassModel], output_dir):
     """Write the generated models to files."""
-    output_dir += OUTPUT_DIR
+    full_output_dir = os.path.join(output_dir, OUTPUT_DIR.lstrip('/'))
     """Write the generated models to files, preserving custom sections."""
-    os.makedirs(output_dir, exist_ok=True)
-    for model in models:
-        model = ClassModel(**model)
+    os.makedirs(full_output_dir, exist_ok=True)
+    for model_data in models:
+        model = ClassModel(**model_data)
         model_name = camel_to_snake(model.name)
         models_content = generate_full_models(model)
         file_name = f"{model_name}.py"
-        file_path = os.path.join(output_dir, file_name)
+        file_path = os.path.join(full_output_dir, file_name)
 
         # Preserve custom sections in the file
         final_content = preserve_custom_sections(file_path, models_content)
