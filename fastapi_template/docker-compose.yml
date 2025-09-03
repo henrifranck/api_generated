@@ -12,5 +12,6 @@ services:
     ports:
       - "${HOST_PORT}:${CONTAINER_PORT}"
     volumes:
+      - .:/app
       - ./files:/app/files
     command: /app/prestart.sh  # Just run the prestart script

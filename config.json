@@ -1,6 +1,6 @@
 {
-    "new_project_path": "/Users/macbookpro/Desktop/projet/ssv_api",
-    "db": "test_database",
+    "new_project_path": "/Users/macbookpro/Desktop/projet/unit_test",
+    "db": "unit_test",
     "user": "test_user",
     "host": "localhost",
     "password": "malagasy",

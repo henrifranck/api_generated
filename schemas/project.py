@@ -16,6 +16,7 @@ class AttributesModel(BaseModel):
     is_foreign: bool = False
     foreign_key_class: Optional[str] = None
     foreign_key: Optional[str] = None
+    relation_name: Optional[str] = None
 
     @property
     def sqlalchemy_type(self) -> str:
@@ -132,6 +133,7 @@ class ProjectCreate(BaseModel):
 
 class ProjectUpdate(BaseModel):
     class_model: List[ClassModel] = None
+    migration_message: str = ""
     nodes: Any = {}
 
 

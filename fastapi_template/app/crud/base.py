@@ -36,14 +36,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             self,
             db: Session,
             id: Any,
-            where: Any = "",
+            where: Any = None,
             relations=None,
             include_deleted=False,
     ) -> Optional[ModelType]:
         query = db.query(self.model).filter(self.model.id == id)
 
-        if where is not None and where != "":
-            where = ast.literal_eval(where)
+        if where is not None and isinstance(where, list):
             conditions = self.get_full_condition(
                 where=where,
                 include_deleted=include_deleted,

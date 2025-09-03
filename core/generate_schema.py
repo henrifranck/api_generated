@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from model_type import preserve_custom_sections, \
     camel_to_snake, snake_to_camel  # Import your model definitions
-from utils.generate_data_test import get_column_type, generate_comumn_name
+from utils.generate_data_test import get_column_type, generate_comumn_name, generate_relation_name
 
 OUTPUT_DIR = "/app/schemas"
 
@@ -187,7 +187,16 @@ def generate_in_db_base_schema(model: ClassModel, base_schema: str, table_name: 
 def generate_model_class(model: ClassModel, in_db_base_schema: str, table_name: str) -> str:
     """Generate the User schema class with all relationships."""
     schema_name = snake_to_camel(table_name)
-    schema_lines = [f"\nclass {schema_name}({in_db_base_schema}):"]
+    schema_lines = [
+        f"\nclass {schema_name}({in_db_base_schema}):",
+        f"    pass", ""]
+    return "\n".join(schema_lines)
+
+
+def generate_model_class_with_relation(model: ClassModel, in_db_base_schema: str, table_name: str) -> str:
+    """Generate the User schema class with all relationships."""
+    schema_name = snake_to_camel(table_name)
+    schema_lines = [f"\nclass {schema_name}WithRelation({in_db_base_schema}):"]
 
     i = 0
     # Inspect relationships in the model
@@ -195,7 +204,7 @@ def generate_model_class(model: ClassModel, in_db_base_schema: str, table_name: 
         if column.is_foreign:
             i += 1
             related_model = column.foreign_key_class
-            relationship_name = camel_to_snake(related_model)
+            relationship_name = generate_relation_name(camel_to_snake(related_model), column.relation_name)
             schema_lines.append(f"    {relationship_name}: Optional[{related_model}] = None")
     if i == 0:
         schema_lines.append(f"    pass")
@@ -240,8 +249,9 @@ def generate_full_schema(model: ClassModel, table_name: str) -> str:
         generate_update_schema(base_schema, table_name),
         generate_in_db_base_schema(model, base_schema, table_name),
         generate_model_class(model, in_db_base_schema, table_name),
+        generate_model_class_with_relation(model, in_db_base_schema, table_name),
         generate_in_db_class(in_db_base_schema, table_name),
-        generate_response_class(class_name, table_name),
+        generate_response_class(f"{class_name}WithRelation", table_name),
     ]
     return "\n".join(schema_lines)
 

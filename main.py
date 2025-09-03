@@ -61,12 +61,17 @@ def create_all_file(project, destination_dir, migration_message, class_model: Li
     other_config = schemas.OtherConfigSchema(**project.other_config)
     write_models(class_model, destination_dir)
     write_schemas(class_model, destination_dir)
+
+    # generate only for the new class
     write_crud(class_model, destination_dir, other_config)
     write_endpoints(class_model, destination_dir, other_config)
     write_init_files(destination_dir)
     write_base_files(class_model, destination_dir)
-    write_test_crud(class_model, destination_dir)
-    write_test_apis(class_model, destination_dir, other_config)
+
+    # each updated generate test
+    write_test_crud(project.class_model, destination_dir)
+    write_test_apis(project.class_model, destination_dir, other_config)
+
     if not other_config.use_authentication:
         reformate_code(destination_dir)
     write_auth_config(destination_dir, other_config)
@@ -77,7 +82,7 @@ def create_all_file(project, destination_dir, migration_message, class_model: Li
     except AttributeError:
         pass  # os.sync doesn't exist on some platforms
 
-    print("All files generated. Proceeding with Alembic migration...")
+    print(f"All files generated. Proceeding with Alembic migration... t{migration_message}s ...")
     run_migrations(message=migration_message)
 
 
@@ -184,7 +189,6 @@ async def update_project(
         project_id: int,
         project_in: ProjectUpdate,
         db: Session = Depends(get_db),
-        migration_message: str = "",
         updated_class: List[str] = None
 ):
     project = crud.get_project_by_id(db=db, id=project_id)
@@ -205,7 +209,7 @@ async def update_project(
                    and project_['name'].lower() not in new_class]
 
     print(jsonable_encoder(class_model))
-    generate_project(project, migration_message, class_model)
+    generate_project(project, project_in.migration_message, class_model)
     if len(deleted_class) > 0:
         destination_dir = os.path.join("project", project.name)
         for class_name in deleted_class:

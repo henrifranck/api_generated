@@ -24,7 +24,7 @@ def run_migrations(message: str):
         print("Finished moving migration files.")
 
         # ✅ Run Alembic in a fresh subprocess
-        print("Creating migration...")
+        print("Creating migration...", message)
         subprocess.run(["alembic", "revision", "--autogenerate", "-m", message], check=True)
 
         print("Applying migration...")
@@ -36,5 +36,5 @@ def run_migrations(message: str):
         move_migration_files(local_directory, remote_directory)
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred in alembic: {e}")
         sys.exit(1)

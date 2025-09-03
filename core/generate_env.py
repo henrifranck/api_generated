@@ -47,6 +47,9 @@ MONGO_DB_USER='root'
 MONGO_DB_PASSWORD='password'
 MONGO_DB_CLIENT='admin'
 MONGO_DB_COLLECTION='investissement'
+
+# -- Test ---
+TESTING=1
 """
     with open(output_file, "w") as f:
         f.write(content)

@@ -136,7 +136,10 @@ def write_crud(models: List[ClassModel], output_dir, other_config: schemas.Other
 
         # Preserve custom sections in the file
         final_content = preserve_custom_sections(file_path, crud_content)
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                f.write(final_content)
+            print(f"Generated CRUD for: {table_name}")
+        else:
+            print(f"CRUD for {table_name} already exist")
 
-        with open(file_path, "w") as f:
-            f.write(final_content)
-        print(f"Generated CRUD for: {table_name}")

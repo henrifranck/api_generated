@@ -63,7 +63,7 @@ def generate_column(data: List[AttributesModel]) -> Dict[str, Any]:
         else:
             value = generate_data(attr.type, attr.length)
             if isinstance(value, str):
-                result[attr.name] =  repr(value)  # adds quotes & escapes
+                result[attr.name] = repr(value)  # adds quotes & escapes
             if isinstance(value, (bool, int, float)):
                 result[attr.name] = repr(value)
             if isinstance(value, (datetime, date, time)):
@@ -160,3 +160,9 @@ def generate_comumn_name(column_name, optional: bool = False):
     if column_name == "hashed_password":
         return {"name": "password", "optional": True}
     return {"name": column_name, "optional": optional}
+
+
+def generate_relation_name(default_relations: str, relation_name: str) -> str:
+    if relation_name and len(relation_name) > 0:
+        return relation_name
+    return default_relations

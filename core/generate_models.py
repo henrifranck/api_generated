@@ -4,7 +4,7 @@ from typing import List
 
 from model_type import preserve_custom_sections, camel_to_snake, snake_to_camel, generate_class_name
 from schemas import ClassModel, AttributesModel
-from utils.generate_data_test import get_comumn_type_msql
+from utils.generate_data_test import get_comumn_type_msql, generate_relation_name
 
 OUTPUT_DIR = "/app/models"
 
@@ -73,7 +73,7 @@ def generate_models(model: ClassModel):
     models_lines.append("    # Relations")
     for column in model.attributes:
         if column.is_foreign:
-            column_def = f"    {camel_to_snake(column.foreign_key_class)} = relationship('{column.foreign_key_class}', " \
+            column_def = f"    {generate_relation_name(camel_to_snake(column.foreign_key_class), column.relation_name)} = relationship('{column.foreign_key_class}', " \
                          f"foreign_keys=[{column.name}])"
             models_lines.append(column_def)
 
