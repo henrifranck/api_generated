@@ -333,8 +333,6 @@ def write_test_crud(models: List[ClassModel], output_dir: str, all_enums=None) -
     ]
     all_models: Dict[str, ClassModel] = {m.name: m for m in normalized_models}
 
-    print("all model ito an", all_models)
-
     for model in normalized_models:
         table_name = camel_to_snake(model.name)
         content = generate_full_schema(model, table_name, all_models, all_enums)

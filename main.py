@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware  # Import CORSMiddleware
 
 from core.delete_models import delete_files
+from core.generate_apis_login import write_login
+from core.generate_apis_login_deps import write_deps
 from core.generate_apis_unit_test import write_test_apis
 from core.generate_base_file import write_base_files
 from core.generate_config import write_auth_config
@@ -18,6 +20,7 @@ from core.generate_endpoints import write_endpoints
 from core.generate_enum import write_enums
 from core.generate_env import generate_env
 from core.generate_init_file import write_init_files
+from core.generate_login import generate_auth_router_module
 from core.generate_models import write_models
 from core.generate_schema import write_schemas
 from core.reformat_file import reformate_code
@@ -72,6 +75,8 @@ def create_all_file(project, destination_dir, migration_message, class_model: Li
     # generate only for the new class
     write_crud(class_model, destination_dir, other_config)
     write_endpoints(class_model, destination_dir, other_config)
+    write_deps(class_model, destination_dir, other_config)
+    write_login(class_model, destination_dir, other_config)
     write_init_files(destination_dir)
     write_base_files(class_model, destination_dir)
 
@@ -101,21 +106,21 @@ def generate_project(project, migration_message, class_model: List[ClassModel]):
     destination_dir = os.path.normpath(os.path.join(os.path.normpath(root_dir), project.name))
 
     write_config(project)
-    try:
-        print("mandalo tsara", template_dir, destination_dir)
-        if os.path.exists(destination_dir):
-            create_all_file(project, destination_dir, migration_message, class_model)
-        else:
-            # Copy the template directory to the destination
-            shutil.copytree(template_dir, destination_dir)
-            # Generate files in the new directory
-            generate_env(project.config, output_file=os.path.normpath(os.path.join(destination_dir, ".env")))
-            create_all_file(project, destination_dir, migration_message, project.class_model)
+    # try:
+    print("mandalo tsara", template_dir, destination_dir)
+    if os.path.exists(destination_dir):
+        create_all_file(project, destination_dir, migration_message, class_model)
+    else:
+        # Copy the template directory to the destination
+        shutil.copytree(template_dir, destination_dir)
+        # Generate files in the new directory
+        generate_env(project.config, output_file=os.path.normpath(os.path.join(destination_dir, ".env")))
+        create_all_file(project, destination_dir, migration_message, project.class_model)
 
-    except FileExistsError as e:
-        print("Error: Directory already exists.", e)
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    # except FileExistsError as e:
+    #     print("Error: Directory already exists.", e)
+    # except Exception as e:
+    #     print(f"An error occurred: {e}")
 
 
 @app.post("/project/config", response_model=schemas.ProjectResponse)

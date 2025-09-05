@@ -13,6 +13,9 @@ from typing import List, Dict, Optional, Set
 import schemas
 from core.generate_crud_unit_test import _literal_name, _literal_value
 from core.generate_filename import generate_filename
+from core.generate_test_deps import generate_deps_tests
+from core.generate_test_login import generate_login_test
+from core.get_model_auth import get_auth_model
 from schemas import ClassModel
 from model_type import preserve_custom_sections, camel_to_snake
 from utils.generate_data_test import generate_data, generate_random_boolean, generate_random_integer, \
@@ -31,105 +34,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Helper generators (imports / auth / headers)
 # ---------------------------------------------------------------------------
-
-def generate_login_test(user_model_name: str, user_model: ClassModel, all_enums: List[Dict] = None) -> str:
-    """Generate dynamic login test based on user model structure"""
-
-    user_table_name = camel_to_snake(user_model_name)
-
-    # Trouver les noms des champs email et password
-    email_field = "email"
-    password_field = "password"
-    hashed_password_field = "hashed_password"
-
-    for attr in user_model.attributes:
-        if attr.name.lower() == "email":
-            email_field = attr.name
-        elif attr.name.lower() == "password":
-            password_field = attr.name
-        elif attr.name.lower() == "hashed_password":
-            hashed_password_field = attr.name
-
-    # Générer les données de test dynamiquement
-    test_data_lines = []
-    password_value = "securepassword123"
-
-    for attr in user_model.attributes:
-        if attr.is_required and not (attr.name == "id" and attr.is_auto_increment):
-            if attr.name == email_field:
-                test_data_lines.append(f"        {attr.name}='testlogin@example.com',")
-
-            elif attr.name == password_field:
-                test_data_lines.append(f"        {attr.name}='{password_value}',")
-
-            elif attr.name.lower() == "is_active":
-                test_data_lines.append(f"        {attr.name}=True,")
-
-            elif attr.name.lower() == "is_superuser":
-                test_data_lines.append(f"        {attr.name}=False,")
-
-            elif attr.name.lower() == "name":
-                test_data_lines.append(f"        {attr.name}='Test User',")
-
-            elif attr.type.lower() == "boolean":
-                test_data_lines.append(f"        {attr.name}={generate_random_boolean()},")
-
-            elif attr.type.lower() in ["integer", "int"]:
-                test_data_lines.append(f"        {attr.name}={generate_random_integer(100)},")
-
-            elif attr.type.lower() == "string":
-                length = attr.length or 10
-                test_data_lines.append(f"        {attr.name}='{generate_random_text(length)}',")
-
-            elif attr.type.lower() == "enum" and attr.enum_name:
-                enum_value = generate_data("enum", all_enums=all_enums, column=attr)
-                test_data_lines.append(f"        {attr.name}={enum_value},")
-
-            else:
-                default_value = generate_data(attr.type, attr.length or 5)
-                if isinstance(default_value, str):
-                    test_data_lines.append(f"        {attr.name}='{default_value}',")
-                else:
-                    test_data_lines.append(f"        {attr.name}={default_value},")
-
-    test_data_str = "\n".join(test_data_lines)
-
-    return f"""
-def test_login_access_token(client, db):
-    # Create a test user with hashed password
-    password = "{password_value}"
-    create_data = schemas.{user_model_name}Create(
-{test_data_str}
-    )
-    user = crud.{user_table_name}.create(db=db, obj_in=create_data)
-
-    # Verify user was created correctly
-    assert user is not None
-    assert user.{email_field} == 'testlogin@example.com'
-    assert user.is_active is True  # Explicitly check active status
-    assert security.verify_password(password, user.{hashed_password_field})
-
-    # Debug: Try authenticating directly
-    authenticated_user = crud.{user_table_name}.authenticate(
-        db, {email_field}='testlogin@example.com', password=password
-    )
-    assert authenticated_user is not None  # This might fail
-
-    # Test login endpoint
-    response = client.post(
-        "/api/v1/login/access-token",
-        data={{
-            "username": user.{email_field},
-            "password": password,
-            "grant_type": "password"
-        }},
-        headers={{"Content-Type": "application/x-www-form-urlencoded"}},
-    )
-
-    assert response.status_code == status.HTTP_200_OK
-    assert "access_token" in response.json()
-"""
-
 
 def _gen_imports(other_cfg: schemas.OtherConfigSchema) -> str:
     lines = [
@@ -447,31 +351,30 @@ def write_test_apis(models: List[ClassModel], output_dir: str, other_cfg: schema
     out_dir = os.path.join(output_dir, OUTPUT_DIR.lstrip("/"))
     os.makedirs(out_dir, exist_ok=True)
 
-    normalised = [m if isinstance(m, ClassModel) else ClassModel(**m) for m in models]
-    all_models: Dict[str, ClassModel] = {m.name: m for m in normalised}
-
     # Trouver le modèle utilisateur pour le test de login
-    user_model_name = None
-    user_model = None
-
-    for model_name, model in all_models.items():
-        has_email = any(attr.name.lower() == "email" for attr in model.attributes)
-        has_password = any(attr.name.lower() in ["password", "hashed_password"] for attr in model.attributes)
-
-        if has_email and has_password:
-            user_model_name = model_name
-            user_model = model
-            break
+    user_model_name, user_model = get_auth_model(models)
 
     if user_model_name and other_cfg.use_authentication:
+        f_login_name_test = f"test_login.py"
+        f_deps_name_test = f"test_deps.py"
 
-        fname = f"test_login.py"
-        fpath = os.path.join(out_dir, fname)
-        content = generate_login_test(user_model_name, user_model, all_enums)
-        final = preserve_custom_sections(fpath, content)
-        with open(fpath, "w", encoding="utf-8") as fp:
-            fp.write(final)
+        flogin_path_test = os.path.join(out_dir, f_login_name_test)
+        fdeps_path_test = os.path.join(out_dir, f_deps_name_test)
+
+        content_login_test = generate_login_test(user_model_name, user_model, all_enums)
+        content_deps_test = generate_deps_tests(user_model_name, user_model, all_enums)
+
+        final_login_test = preserve_custom_sections(flogin_path_test, content_login_test)
+        final_deps_test = preserve_custom_sections(fdeps_path_test, content_deps_test)
+
+        with open(flogin_path_test, "w", encoding="utf-8") as fp:
+            fp.write(final_login_test)
+        with open(fdeps_path_test, "w", encoding="utf-8") as fp:
+            fp.write(final_deps_test)
         logger.info("Generated authentication tests")
+
+    normalised = [m if isinstance(m, ClassModel) else ClassModel(**m) for m in models]
+    all_models: Dict[str, ClassModel] = {m.name: m for m in normalised}
 
     for mdl in normalised:
         tbl = camel_to_snake(mdl.name)

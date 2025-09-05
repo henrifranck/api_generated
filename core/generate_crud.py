@@ -3,6 +3,7 @@ import re
 from typing import List
 
 import schemas
+from core.get_model_auth import get_auth_model
 from model_type import preserve_custom_sections, \
     snake_to_camel, camel_to_snake  # Import your model definitions
 from schemas import ClassModel
@@ -10,7 +11,7 @@ from schemas import ClassModel
 OUTPUT_DIR = "/app/crud"
 
 
-def generate_crud_imports(table_name: str, model_name: str) -> str:
+def generate_crud_imports(table_name: str, model_name: str, user_models="") -> str:
     """Generate the necessary imports for the CRUD class."""
     schema_create = f"{snake_to_camel(table_name)}Create"
     schema_update = f"{snake_to_camel(table_name)}Update"
@@ -29,7 +30,7 @@ def generate_crud_imports(table_name: str, model_name: str) -> str:
         "from app.core.security import get_password_hash, verify_password",
         "from fastapi.encoders import jsonable_encoder",
     ]
-    if model_name == "User":
+    if model_name.upper() == user_models.upper():
         imports += import_user
     return "\n".join(imports)
 
@@ -46,7 +47,8 @@ def generate_crud_class(table_name: str, model_name: str) -> str:
     return "\n".join(class_definition)
 
 
-def generate_crud_functions(table_name: str, model_name: str, other_config: schemas.OtherConfigSchema) -> str:
+def generate_crud_functions(table_name: str, model_name: str, other_config: schemas.OtherConfigSchema,
+                            user_models="") -> str:
     """Generate common CRUD functions."""
     functions = [
         f"    def get_by_id(self, db: Session, *, id: int) -> Optional[{model_name}]:",
@@ -66,15 +68,15 @@ def generate_crud_functions(table_name: str, model_name: str, other_config: sche
         "",
     ]
 
-    if other_config.use_authentication and model_name.upper() == "USER":
+    if other_config.use_authentication and model_name.upper() == user_models.upper():
         user_functions = [
             f"    def get_by_email(self, db: Session, *, email: str) -> Optional[{model_name}]:",
             f"        return db.query({model_name}).filter({model_name}.email == email).first()",
             "",
-            f"    def is_superuser(self, user: User) -> {model_name}:",
+            f"    def is_superuser(self, user: {model_name}) -> {model_name}:",
             f"        return user.is_superuser",
             "",
-            f"    def is_active(self, user: User) -> {model_name}:",
+            f"    def is_active(self, user: {model_name}) -> {model_name}:",
             f"        return user.is_active",
             "",
             f"    def authenticate(self, db: Session, *, email: str, password: str) -> {model_name}:",
@@ -85,10 +87,10 @@ def generate_crud_functions(table_name: str, model_name: str, other_config: sche
             f"            return None",
             f"        return user",
             "",
-            f"    def create(self, db: Session, *, obj_in: UserCreate) -> User:",
+            f"    def create(self, db: Session, *, obj_in: {model_name}Create) -> {model_name}:",
             f"        obj_data = jsonable_encoder(obj_in)",
             f"        pass_value = obj_data.pop('password')",
-            f"        db_obj = User(hashed_password=get_password_hash(pass_value), **obj_data)",
+            f"        db_obj = {model_name}(hashed_password=get_password_hash(pass_value), **obj_data)",
             f"        db.add(db_obj)",
             f"        db.commit()",
             f"        db.refresh(db_obj)",
@@ -111,12 +113,12 @@ def generate_crud_instance(table_name: str, model_name: str) -> str:
     return "\n".join(instance)
 
 
-def generate_crud(table_name: str, model_name: str, other_config: schemas.OtherConfigSchema) -> str:
+def generate_crud(table_name: str, model_name: str, other_config: schemas.OtherConfigSchema, user_models) -> str:
     """Generate the full CRUD class for a given model."""
     crud_lines = [
-        generate_crud_imports(table_name, model_name),
+        generate_crud_imports(table_name, model_name, user_models),
         generate_crud_class(table_name, model_name),
-        generate_crud_functions(table_name, model_name, other_config),
+        generate_crud_functions(table_name, model_name, other_config, user_models),
         generate_crud_instance(table_name, model_name),
     ]
     return "\n".join(crud_lines)
@@ -126,11 +128,13 @@ def write_crud(models: List[ClassModel], output_dir, other_config: schemas.Other
     """Write the generated CRUD classes to files, preserving custom sections."""
     output_dir += OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
+
+    user_model_name, user_model = get_auth_model(models)
     for model in models:
         model = ClassModel(**model)
         table_name = camel_to_snake(model.name)
         model_name = model.name
-        crud_content = generate_crud(table_name, model_name, other_config)
+        crud_content = generate_crud(table_name, model_name, other_config, user_model_name)
         file_name = f"crud_{table_name}.py"
         file_path = os.path.join(output_dir, file_name)
 
@@ -142,4 +146,3 @@ def write_crud(models: List[ClassModel], output_dir, other_config: schemas.Other
             print(f"Generated CRUD for: {table_name}")
         else:
             print(f"CRUD for {table_name} already exist")
-

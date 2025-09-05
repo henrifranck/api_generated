@@ -3,6 +3,7 @@ from typing import List
 
 import schemas
 from core.generate_filename import generate_filename
+from core.get_model_auth import get_auth_model
 from schemas import ClassModel
 
 from model_type import snake_to_camel, camel_to_snake
@@ -10,13 +11,14 @@ from model_type import snake_to_camel, camel_to_snake
 OUTPUT_DIR = "/app/api/api_v1/endpoints"
 
 
-def generate_router_file(table_name, other_config):
+def generate_router_file(table_name, other_config, user_model_name):
     """Generate a FastAPI router file for CRUD operations."""
     schema_name = snake_to_camel(table_name)
     router_name = table_name
     crud_name = table_name
     response_model_name = f"Response{schema_name}"
 
+    table_user_name = camel_to_snake(user_model_name)
     # Common imports
     imports = [
         "from typing import Any",
@@ -30,8 +32,10 @@ def generate_router_file(table_name, other_config):
         f"router = APIRouter()",
     ]
 
+
+
     # Conditional imports and dependencies
-    auth_dependency = "current_user: models.User = Depends(deps.get_current_active_user)," if other_config.use_authentication else ""
+    auth_dependency = f"current_user: models.{user_model_name} = Depends(deps.get_current_active_user)," if other_config.use_authentication else ""
     auth_import = "from app.api import deps" if other_config.use_authentication else ""
 
     data = f"{router_name}_id"
@@ -156,10 +160,13 @@ def write_endpoints(models: List[ClassModel], output_dir, other_config: schemas.
     """Write the generated schemas to files."""
     endpoints_directory = output_dir + OUTPUT_DIR
     os.makedirs(endpoints_directory, exist_ok=True)
+
+    user_model_name, user_model = get_auth_model(models)
+    
     for model in models:
         model = ClassModel(**model)
         table_name = camel_to_snake(model.name)
-        endpoints = generate_router_file(table_name, other_config)
+        endpoints = generate_router_file(table_name, other_config, user_model_name)
         file_name = f"{generate_filename(table_name)}.py"
         file_path = os.path.join(endpoints_directory, file_name)
 

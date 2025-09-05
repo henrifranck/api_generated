@@ -55,18 +55,18 @@ def generate_data(type_: Any, length: int = 5, all_enums=None, column = None):
     type_ = type_.upper()
     limit = 10 if length and length >= 10 else length
 
-    # Handle ENUM types first
-    enum_data = None
-    for enum in all_enums:
-        if enum["name"] == column.enum_name:
-            enum_data = enum
-            break
+    if type_ == "ENUM":
+        # Handle ENUM types first
+        enum_data = None
+        for enum in all_enums:
+            if enum["name"] == column.enum_name:
+                enum_data = enum
+                break
 
-    if enum_data:
-        import random
-        enum_values = [value["value"] for value in enum_data["values"]]
-        print("ito koa raiky", column.name, enum_values)
-        return f"'{random.choice(enum_values)}'"
+        if enum_data:
+            import random
+            enum_values = [value["value"] for value in enum_data["values"]]
+            return f"'{random.choice(enum_values)}'"
 
     # Handle other types
     if type_ == "STRING(255)":
