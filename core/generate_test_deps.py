@@ -77,7 +77,7 @@ def generate_deps_tests(user_model_name: str, user_model: ClassModel, all_enums:
 
             # is_active (only if forced)
             if is_active_field and low == is_active_field.lower() and force_is_active is not None:
-                value = "True" if force_is_active else "False"
+                value = "True"
                 lines.append(f'        "{attr.name}": {value},')
                 continue
 
