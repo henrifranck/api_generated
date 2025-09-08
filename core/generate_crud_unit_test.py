@@ -139,6 +139,12 @@ def _build_dependency_setup_lines(
 # Code-gen building blocks
 # ---------------------------------------------------------------------------
 
+def extract_values(data: list) -> list:
+    """Extrait la liste des valeurs depuis la structure donnée."""
+    if not data:
+        return []
+
+    return [item["value"] for item in data[0].get("values", [])]
 
 def generate_import(_: ClassModel) -> str:
     """Imports that every generated test file needs."""
@@ -151,6 +157,7 @@ def generate_import(_: ClassModel) -> str:
             "import pytest",
             "from datetime import datetime, date, time, timedelta",
             "import uuid",  # Add this if you're using UUID fields
+            "import random",  # Added for enum handling
         ]
     )
 
@@ -172,6 +179,11 @@ def generate_test_crud(
         lines.extend(dep_lines)
         data_var = f"{root_var}_data"  # created inside dependency builder
         schema_update = f"schemas.{model.name}Update"
+
+        enum_fields = [
+            a.name for a in model.attributes
+            if hasattr(a, 'enum_name') and a.enum_name and all_enums
+        ]
 
         # -------------------------------------------------------------------
         # Specific CRUD scenarios
@@ -203,6 +215,21 @@ def generate_test_crud(
                 if 'time' in a.type.lower() and 'datetime' not in a.type.lower()
             ]
 
+            # Add this before the update_data construction
+            lines.extend([
+                "    # Precompute enum values for update",
+                "    enum_values_map = {}",
+            ])
+
+            # Add enum value mapping for each enum field
+            for a in model.attributes:
+                if a.name in enum_fields:
+                    enum_data = next((e for e in all_enums if e['name'] == a.enum_name), None)
+                    if enum_data:
+                        values_str = ", ".join(
+                            [f"'{v}'" if isinstance(v, str) else str(v) for v in enum_data['values']])
+                        lines.append(f"    enum_values_map['{a.name}'] = [{values_str}]")
+
             lines.extend(
                 [
                     "    # Update data",
@@ -214,6 +241,8 @@ def generate_test_crud(
                     f"    update_data = {schema_update}(**{{",
                     "        k: (not v) if isinstance(v, bool) else",
                     "           (v + 1) if isinstance(v, (int, float)) else",
+                    # Handle enum fields - simplified approach
+                    f"           random.choice([val['value'] for val in enum_values_map.get(k, []) if val != v]) if k in enum_values_map else",
                     # Handle datetime fields - add 1 day
                     "           (datetime.fromisoformat(v) + timedelta(days=1)).isoformat() if k in " + str(
                         datetime_fields) + " and isinstance(v, str) else",

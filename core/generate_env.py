@@ -4,7 +4,7 @@ def replace_cote(value: str):
     return value
 
 
-def generate_env(config: dict, output_file: str = ".env"):
+def generate_env(config: dict, output_file: str = ".env", use_docker=False):
     """
     Generate a .env file with structured comments and the provided configuration values.
     """
@@ -23,7 +23,7 @@ CONTAINER_PORT='{replace_cote(config["container_port"])}'
 BACKEND_CORS_ORIGINS={replace_cote(config["backend_cors_origins"])}
 
 # --- MySQL Database Configuration ---
-MYSQL_HOST='{replace_cote(config["mysql_host"])}'  # Or the Docker service name (e.g., db, host.docker.internal) or external host IP
+MYSQL_HOST='{replace_cote(config["mysql_host"]) if not use_docker else 'host.docker.internal'}'  # Or the Docker service name (e.g., db, host.docker.internal) or external host IP
 MYSQL_PORT={replace_cote(config["mysql_port"])}
 MYSQL_USER='{replace_cote(config["mysql_user"])}'
 MYSQL_PASSWORD='{replace_cote(config["mysql_password"])}'

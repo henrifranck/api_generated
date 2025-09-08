@@ -32,8 +32,6 @@ def generate_router_file(table_name, other_config, user_model_name):
         f"router = APIRouter()",
     ]
 
-
-
     # Conditional imports and dependencies
     auth_dependency = f"current_user: models.{user_model_name} = Depends(deps.get_current_active_user)," if other_config.use_authentication else ""
     auth_import = "from app.api import deps" if other_config.use_authentication else ""
@@ -162,7 +160,7 @@ def write_endpoints(models: List[ClassModel], output_dir, other_config: schemas.
     os.makedirs(endpoints_directory, exist_ok=True)
 
     user_model_name, user_model = get_auth_model(models)
-    
+
     for model in models:
         model = ClassModel(**model)
         table_name = camel_to_snake(model.name)

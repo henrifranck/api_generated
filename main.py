@@ -74,9 +74,9 @@ def create_all_file(project, destination_dir, migration_message, class_model: Li
 
     # generate only for the new class
     write_crud(class_model, destination_dir, other_config)
-    write_endpoints(class_model, destination_dir, other_config)
     write_deps(class_model, destination_dir, other_config)
     write_login(class_model, destination_dir, other_config)
+    write_endpoints(class_model, destination_dir, other_config)
     write_init_files(destination_dir)
     write_base_files(class_model, destination_dir)
 
@@ -114,7 +114,11 @@ def generate_project(project, migration_message, class_model: List[ClassModel]):
         # Copy the template directory to the destination
         shutil.copytree(template_dir, destination_dir)
         # Generate files in the new directory
-        generate_env(project.config, output_file=os.path.normpath(os.path.join(destination_dir, ".env")))
+        generate_env(
+            project.config,
+            output_file=os.path.normpath(os.path.join(destination_dir, ".env")),
+            use_docker=project.other_config["use_docker"]
+        )
         create_all_file(project, destination_dir, migration_message, project.class_model)
 
     # except FileExistsError as e:
@@ -154,7 +158,10 @@ def update_project(
 
     write_config(project)
     if os.path.exists(destination_dir + "/.env"):
-        generate_env(project.config, output_file=destination_dir + "/.env")
+        generate_env(
+            project.config,
+            output_file=destination_dir + "/.env",
+            use_docker=project.other_config["use_docker"])
     return project
 
 

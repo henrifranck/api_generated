@@ -11,7 +11,7 @@ import logging
 from typing import List, Dict, Optional, Set
 
 import schemas
-from core.generate_crud_unit_test import _literal_name, _literal_value
+from core.generate_crud_unit_test import _literal_name, _literal_value, extract_values
 from core.generate_filename import generate_filename
 from core.generate_test_deps import generate_deps_tests
 from core.generate_test_login import generate_login_test
@@ -40,6 +40,8 @@ def _gen_imports(other_cfg: schemas.OtherConfigSchema) -> str:
         "from fastapi import status",
         "from app import crud, schemas",
         "from datetime import datetime, timedelta",
+        "import random"
+
     ]
     if other_cfg.use_authentication:
         lines.append("from app.core import security")
@@ -242,6 +244,12 @@ def _gen_test_api(
         tl.append("    }")
         tl.append("")
 
+
+        enum_fields = [
+            a.name for a in model.attributes
+            if hasattr(a, 'enum_name') and a.enum_name and all_enums
+        ]
+
         # --------------------------------------------------------------------
         # CREATE test
         if op == "create":
@@ -264,6 +272,20 @@ def _gen_test_api(
                            'time' in a.type.lower() and 'datetime' not in a.type.lower()]
 
             tl += [
+                "    # Precompute enum values for update",
+                "    enum_values_map = {}",
+            ]
+
+            # Add enum value mapping for each enum field
+            for a in model.attributes:
+                if a.name in enum_fields:
+                    enum_data = next((e for e in all_enums if e['name'] == a.enum_name), None)
+                    if enum_data:
+                        values_str = ", ".join(
+                            [f"'{v}'" if isinstance(v, str) else str(v) for v in enum_data['values']])
+                        tl.append(f"    enum_values_map['{a.name}'] = [{values_str}]")
+
+            tl += [
                       f"    resp_c = client.post('{base_ep}/', json={table_name}_data, {hdrs_kwarg})",
                       "    assert resp_c.status_code == status.HTTP_200_OK",
                       "    created = resp_c.json()",
@@ -271,6 +293,8 @@ def _gen_test_api(
                       "    update_data = {",
                       "        k: (not v) if isinstance(v, bool) else",
                       "           (v + 1) if isinstance(v, (int, float)) else",
+                      # Handle enum fields - simplified approach
+                      "           random.choice([val['value'] for val in enum_values_map.get(k, []) if val != v]) if k in enum_values_map else",
                       f"           (datetime.fromisoformat(v) + timedelta(days=1)).isoformat() if k in {datetime_fields} else",
                       f"           (datetime.strptime(v, '%H:%M:%S').time().replace(hour=(datetime.strptime(v, '%H:%M:%S').hour + 1)%24).strftime('%H:%M:%S')) if k in {time_fields} else",
                       "           f'updated_{v}'",
